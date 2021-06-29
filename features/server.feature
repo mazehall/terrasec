@@ -24,7 +24,7 @@ Feature: Backend server
      Then the command should run properly 
       And at the end the server should be stopped 
      When I make a terrasec call with "plan"
-     Then I should get output with pattern "Plan: 1 to add, 0 to change, 0 to destroy."
+     Then I should get output with pattern "1 to add, 0 to change, 0 to destroy."
      Then the command should run properly
      When I make a terrasec call with "apply --auto-approve"
      Then I should get output with pattern "Apply complete! Resources: 1 added, 0 changed, 0 destroyed."
