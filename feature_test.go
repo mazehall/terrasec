@@ -22,14 +22,16 @@ var (
 )
 
 type scenario struct {
-	name   string
-	cmd    *exec.Cmd
-	stdin  io.WriteCloser
-	stdout io.ReadCloser
-	args   []string
-	output []byte
-	update chan bool
-	tf     feature.TfProject
+	name        string
+	cmd         *exec.Cmd
+	stdin       io.WriteCloser
+	stdout      io.ReadCloser
+	stderr      io.ReadCloser
+	args        []string
+	output      []byte
+	errorOutput []byte
+	update      chan bool
+	tf          feature.TfProject
 }
 
 func (s *scenario) thereIsATerminal() error {
@@ -56,6 +58,10 @@ func (s *scenario) iMakeATerrasecCallWith(arg1 string) error {
 	if err != nil {
 		return err
 	}
+	s.stderr, err = s.cmd.StderrPipe()
+	if err != nil {
+		return err
+	}
 	if err = s.cmd.Start(); err != nil {
 		return err
 	}
@@ -72,6 +78,16 @@ func (s *scenario) iMakeATerrasecCallWith(arg1 string) error {
 		close(s.update)
 		// fmt.Printf("Finished Scan -> %s", s.name)
 	}(s.stdout)
+	go func(stderr io.Reader) {
+		scanner := bufio.NewScanner(stderr)
+		scanner.Split(bufio.ScanBytes)
+
+		for scanner.Scan() {
+			bytes := scanner.Bytes()
+			s.errorOutput = append(s.errorOutput, bytes...)
+		}
+		// fmt.Printf("Finished Scan -> %s", s.name)
+	}(s.stderr)
 	return nil
 }
 
@@ -84,13 +100,48 @@ func (s *scenario) iShouldGetOutputWithPattern(arg1 string) error {
 		return err
 	}
 	if !matched {
-		return fmt.Errorf("Pattern %s not found in %s", arg1, string(s.output))
+		return fmt.Errorf("Pattern\n %s\n not found in\n %s", arg1, string(s.errorOutput))
+	}
+	return nil
+}
+
+func (s *scenario) iShouldGetErrorOutputWithPattern(arg1 string) error {
+	for range s.update {
+	}
+	matched, err := regexp.Match(arg1, s.errorOutput)
+	if err != nil {
+		return err
+	}
+	if !matched {
+		return fmt.Errorf("Pattern\n %s\n not found in\n %s", arg1, string(s.output))
 	}
 	return nil
 }
 
 func (s *scenario) thereIsANewTerraformProject() error {
 	if err := s.tf.Prepare(feature.Simple); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *scenario) thereIsAnExistingTerrasecProject() error {
+	if err := s.tf.Prepare(feature.Simple); err != nil {
+		return err
+	}
+	if err := s.tf.Prepare(feature.TsConfigFileRepo); err != nil {
+		return err
+	}
+	cmd := exec.Command(command, "--chdir", s.tf.Path, "init")
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+	s.tf.Kind = "file"
+	return nil
+}
+
+func (s *scenario) theSavedStateIsBrokenInTermsOfContent() error {
+	if err := s.tf.Prepare(feature.FailState); err != nil {
 		return err
 	}
 	return nil
@@ -124,7 +175,7 @@ func (s *scenario) theCommandShouldRunProperly() error {
 		for range s.update {
 		}
 		if err := s.cmd.Wait(); nil != err {
-			return fmt.Errorf("command failed with %s", err)
+			return fmt.Errorf("Process exit code was: %d\n%s", s.cmd.ProcessState.ExitCode(), string(s.output)+string(s.errorOutput))
 		}
 		// fmt.Printf("Output %v", string(s.output))
 		if s.cmd.ProcessState.ExitCode() == 0 {
@@ -133,6 +184,21 @@ func (s *scenario) theCommandShouldRunProperly() error {
 		return fmt.Errorf("Process exit code was: %d\n%s", s.cmd.ProcessState.ExitCode(), string(s.output))
 	}
 	return nil
+}
+
+func (s *scenario) theCommandShouldExitWithError() error {
+	if s.cmd != nil {
+		for range s.update {
+		}
+		if err := s.cmd.Wait(); nil != err {
+			return nil
+		}
+		// fmt.Printf("Output %v", string(s.output))
+		if s.cmd.ProcessState.ExitCode() == 0 {
+			return fmt.Errorf("Process exited without error\n%s", string(s.output))
+		}
+	}
+	return fmt.Errorf("There was no process\n%s", string(s.output))
 }
 
 func (s *scenario) atTheEndTheServerShouldBeStopped() error {
@@ -185,4 +251,8 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the command should run properly$`, s.theCommandShouldRunProperly)
 	ctx.Step(`^terrasec should start an http server$`, s.terrasecShouldStartAnHttpServer)
 	ctx.Step(`^at the end the server should be stopped$`, s.atTheEndTheServerShouldBeStopped)
+	ctx.Step(`^there is an existing terrasec project$`, s.thereIsAnExistingTerrasecProject)
+	ctx.Step(`^I should get error output with pattern "([^"]*)"$`, s.iShouldGetErrorOutputWithPattern)
+	ctx.Step(`^the command should exit with error$`, s.theCommandShouldExitWithError)
+	ctx.Step(`^the saved state is broken in terms of content$`, s.theSavedStateIsBrokenInTermsOfContent)
 }

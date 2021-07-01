@@ -29,7 +29,10 @@ func (r FileRepo) getState() ([]byte, error) {
 	}
 	secret, err := os.ReadFile(filepath.Join(filepath.Dir(r.configFile), r.config.Repo.State))
 	if err != nil {
-		return []byte{}, err
+		// state not clearly found -> new state
+		return []byte{}, &GetStateError{
+			message: err.Error(),
+		}
 	}
 	// fmt.Println(string(secret))
 	return secret, nil
@@ -50,7 +53,16 @@ func (r FileRepo) saveState(payload []byte) error {
 }
 
 // part of repository interface
-func (r FileRepo) deleteState() error { return nil }
+func (r FileRepo) DeleteState() error {
+	if err := r.prepare(); err != nil {
+		return err
+	}
+	if err := os.Remove(
+		filepath.Join(filepath.Dir(r.configFile), r.config.Repo.State)); err != nil {
+		return err
+	}
+	return nil
+}
 
 // part of repository interface
 func (r FileRepo) lockState(payload []byte) error { return nil }
@@ -72,6 +84,5 @@ func (r *FileRepo) setConfig() error {
 	if err := hclsimple.DecodeFile(r.configFile, nil, &r.config); err != nil {
 		return fmt.Errorf("failed to load configuration: %s", err)
 	}
-	// fmt.Printf("Gopass Configuration is %#v", r.config)
 	return nil
 }

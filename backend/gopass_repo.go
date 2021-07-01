@@ -33,11 +33,14 @@ func (r GopassRepo) getState() ([]byte, error) {
 	cmd := exec.Command("gopass", "show", "-f", r.config.Repo.State)
 	secret, err := cmd.Output()
 	if err != nil {
-		return []byte{}, fmt.Errorf("gopass failed with %s", err)
+		// state not clearly found -> new state
+		return []byte{}, &GetStateError{
+			message: err.Error(),
+		}
 	}
 	decoded, err := base64.StdEncoding.DecodeString(string(secret))
 	if err != nil {
-		return []byte{}, fmt.Errorf("state decoding failed with %s", err)
+		return []byte{}, fmt.Errorf("state decoding failed with error: %s\nPlease repair gopass entry: %s", err, r.config.Repo.State)
 	}
 	return decoded, nil
 }
@@ -73,7 +76,19 @@ func (r GopassRepo) saveState(payload []byte) error {
 }
 
 // part of repository interface
-func (r GopassRepo) deleteState() error { return nil }
+func (r GopassRepo) DeleteState() error {
+	if err := r.prepare(); err != nil {
+		return err
+	}
+	cmd := exec.Command("gopass", "rm", "-f", r.config.Repo.State)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("gopass failed with %s", err)
+	}
+	return nil
+}
 
 // part of repository interface
 func (r GopassRepo) lockState(payload []byte) error { return nil }
@@ -113,7 +128,7 @@ func (r *GopassRepo) gopassSync() error {
 	cmd.Stdin = os.Stdin
 	err := cmd.Run()
 	if err != nil {
-		return fmt.Errorf("gopass failed with %s", err)
+		return fmt.Errorf("failed to sync with remote: check your gopass state\n%s", err)
 	}
 	r.synced = true
 	return nil

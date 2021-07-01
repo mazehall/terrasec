@@ -117,20 +117,24 @@ func (h Http) getState(request *http.Request, response http.ResponseWriter) {
 	}
 	content, err := r.getState()
 	if err != nil {
+		if _, ok := err.(*GetStateError); ok {
+			response.WriteHeader(http.StatusNoContent)
+			return
+		}
 		fmt.Println(err)
-		response.WriteHeader(http.StatusNoContent)
+		response.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	// fmt.Println(content)
 	var j interface{}
 	if err = json.Unmarshal(content, &j); err != nil {
-		fmt.Println(err)
-		response.WriteHeader(http.StatusNoContent)
+		fmt.Printf("terraform state format corrupted: %s\nSolve it with another version from history or backup.", err)
+		response.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	if _, err := response.Write(content); err != nil {
 		fmt.Println(err)
-		response.WriteHeader(http.StatusNoContent)
+		response.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 }
