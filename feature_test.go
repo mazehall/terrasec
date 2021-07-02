@@ -25,8 +25,6 @@ type scenario struct {
 	name        string
 	cmd         *exec.Cmd
 	stdin       io.WriteCloser
-	stdout      io.ReadCloser
-	stderr      io.ReadCloser
 	args        []string
 	output      []byte
 	errorOutput []byte
@@ -54,11 +52,11 @@ func (s *scenario) iMakeATerrasecCallWith(arg1 string) error {
 	if err != nil {
 		return err
 	}
-	s.stdout, err = s.cmd.StdoutPipe()
+	stdout, err := s.cmd.StdoutPipe()
 	if err != nil {
 		return err
 	}
-	s.stderr, err = s.cmd.StderrPipe()
+	stderr, err := s.cmd.StderrPipe()
 	if err != nil {
 		return err
 	}
@@ -77,7 +75,7 @@ func (s *scenario) iMakeATerrasecCallWith(arg1 string) error {
 		}
 		close(s.update)
 		// fmt.Printf("Finished Scan -> %s", s.name)
-	}(s.stdout)
+	}(stdout)
 	go func(stderr io.Reader) {
 		scanner := bufio.NewScanner(stderr)
 		scanner.Split(bufio.ScanBytes)
@@ -86,8 +84,11 @@ func (s *scenario) iMakeATerrasecCallWith(arg1 string) error {
 			bytes := scanner.Bytes()
 			s.errorOutput = append(s.errorOutput, bytes...)
 		}
+		if err := scanner.Err(); err != nil {
+			fmt.Println(err)
+		}
 		// fmt.Printf("Finished Scan -> %s", s.name)
-	}(s.stderr)
+	}(stderr)
 	return nil
 }
 
@@ -100,7 +101,7 @@ func (s *scenario) iShouldGetOutputWithPattern(arg1 string) error {
 		return err
 	}
 	if !matched {
-		return fmt.Errorf("Pattern\n %s\n not found in\n %s", arg1, string(s.errorOutput))
+		return fmt.Errorf("Pattern\n %s\n not found in\n %s", arg1, string(s.output))
 	}
 	return nil
 }
@@ -113,7 +114,7 @@ func (s *scenario) iShouldGetErrorOutputWithPattern(arg1 string) error {
 		return err
 	}
 	if !matched {
-		return fmt.Errorf("Pattern\n %s\n not found in\n %s", arg1, string(s.output))
+		return fmt.Errorf("Pattern\n %s\n not found in\n %s", arg1, string(s.errorOutput))
 	}
 	return nil
 }
@@ -198,7 +199,7 @@ func (s *scenario) theCommandShouldExitWithError() error {
 			return fmt.Errorf("Process exited without error\n%s", string(s.output))
 		}
 	}
-	return fmt.Errorf("There was no process\n%s", string(s.output))
+	return fmt.Errorf("No process was started\n%s", string(s.output))
 }
 
 func (s *scenario) atTheEndTheServerShouldBeStopped() error {
