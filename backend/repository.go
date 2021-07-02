@@ -7,7 +7,7 @@ import (
 type repository interface {
 	getState() ([]byte, error)
 	saveState(payload []byte) error
-	deleteState() error
+	DeleteState() error
 	lockState(payload []byte) error
 	unlockState(payload []byte) error
 }
@@ -21,4 +21,12 @@ func GetRepo(configFile string, kind string) (repository, error) {
 	default:
 		return nil, fmt.Errorf("wrong repository configuration: unknown provider \"%s\"", c)
 	}
+}
+
+type GetStateError struct {
+	message string
+}
+
+func (e *GetStateError) Error() string {
+	return e.message
 }

@@ -11,6 +11,7 @@ import (
 
 const (
 	Simple             = "simple main.tf"
+	FailState          = "state file corrupted"
 	TsConfigFileRepo   = "ts config with file repository"
 	TsConfigGopassRepo = "ts config with gopass repository"
 
@@ -19,6 +20,7 @@ const (
 
 type TfProject struct {
 	Path string
+	Kind string
 }
 
 func (tf *TfProject) Prepare(style string) error {
@@ -28,6 +30,8 @@ func (tf *TfProject) Prepare(style string) error {
 		files["terrasec_file.hcl"] = "terrasec.hcl"
 	case TsConfigGopassRepo:
 		files["terrasec.hcl"] = "terrasec.hcl"
+	case FailState:
+		files["destroyed.tfstate"] = "remoteState.tfstate"
 	case Simple:
 		files["main.tf"] = "main.tf"
 	}
