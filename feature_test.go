@@ -114,7 +114,13 @@ func (s *scenario) iShouldGetErrorOutputWithPattern(arg1 string) error {
 		return err
 	}
 	if !matched {
-		return fmt.Errorf("Pattern\n %s\n not found in\n %s", arg1, string(s.errorOutput))
+		matched, err := regexp.Match(arg1, s.output)
+		if err != nil {
+			return err
+		}
+		if !matched {
+			return fmt.Errorf("Pattern\n %s\n not found in\n %s\n%s", arg1, string(s.errorOutput), string(s.output))
+		}
 	}
 	return nil
 }
