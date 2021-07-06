@@ -9,10 +9,6 @@ import (
 	"time"
 )
 
-const (
-	version = "v0.1.0 terraform-backend-gopass"
-)
-
 type Http struct {
 	Port       string
 	Kind       string
@@ -22,7 +18,6 @@ type Http struct {
 func (h Http) Run() (url string, err error) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/tfstate", h.handleState)
-	mux.HandleFunc("/", versionPrint)
 	srv := &http.Server{}
 	srv.Handler = mux
 
@@ -46,10 +41,6 @@ func (h Http) Run() (url string, err error) {
 			return addr, nil
 		}
 	}
-}
-
-func versionPrint(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprint(w, version)
 }
 
 func (h Http) handleState(response http.ResponseWriter, request *http.Request) {

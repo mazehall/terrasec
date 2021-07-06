@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	version     = "v0.1.0"
+	version     = "v1.0.0"
 	description = `Secure your secrets and the terraform state 
 through encryption with your own keys and even within teams.`
 )
