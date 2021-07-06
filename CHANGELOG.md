@@ -1,13 +1,17 @@
 # Changelog
 
-## [Unreleased] - yyyy-mm-dd
+## [Unreleased]
+
+## [v1.0.0] - 2021-07-06
 
 ### Added
 
 - terrasec cli
-- terraform to gopass connectivity over remote http backend
+- terraform to gopass connectivity via remote http backend
 - get free port from the os
 - bdd tests
-- github actions pipeline
+- github action for tests
+- github action for release
 
-[Unreleased]: https://github.com/mazehall/terrasec/compare/1b737741d31533e3385b3ecc84948cb03f69955c...HEAD
+[Unreleased]: https://github.com/mazehall/terrasec/compare/v1.0.0...HEAD
+[v1.0.0]: https://github.com/mazehall/terrasec/releases/tag/v1.0.0
